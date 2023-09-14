@@ -1,0 +1,12 @@
+<?xml version="1.0"?>
+
+<launch>
+    <node name="PIDNet" pkg="PIDNet_ROS" type="pidnet_ros.py" cwd="node" output="screen">
+        <remap from="CompressedImage" to="/front_cam/color/image_raw/compressed" />
+    </node>
+
+    <node pkg="rosbag" type="play" name="play" args="/home/amsl/bagfiles/rwrc/traficlight-2021-10-24-13-17tsukuba.bag">
+
+    </node>
+    <node pkg="rviz" type="rviz" name="rviz" args="-d $(find PIDNet_ROS)/config/config.rviz"/>
+</launch>
