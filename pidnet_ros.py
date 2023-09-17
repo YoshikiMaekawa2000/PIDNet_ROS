@@ -88,17 +88,12 @@ class PIDNet_ROS:
                         self.sv_img[:,:,j][pred==i] = color_map[i][j]
 
                 sv_img = cv2.cvtColor(self.sv_img, cv2.COLOR_BGR2RGB)
-                # sv_img = Image.fromarray(sv_img)
-                # print(type(sv_img))
 
-                # 推論結果をImage型に変換
                 result_msg = self.bridge.cv2_to_imgmsg(sv_img, encoding="passthrough")
 
-                # 推論結果をpublish
                 self.pub.publish(result_msg)
 
     def image_callback(self, msg):
-        # 画像データをROSメッセージから復元
         with torch.no_grad():
             img = self.bridge.compressed_imgmsg_to_cv2(msg)
 
@@ -110,32 +105,7 @@ class PIDNet_ROS:
         self.subscribed_img = True
 
 
-
-
-            # # img = torch.from_numpy(img).unsqueeze(0).cuda()
-            # pred = self.predictor(img)
-            # pred = F.interpolate(pred, size=img.size()[-2:],
-            #         mode='bilinear', align_corners=True)
-            # pred = torch.argmax(pred, dim=1).squeeze(0).cpu().numpy()
-            # for i, color in enumerate(color_map):
-            #     for j in range(3):
-            #         sv_img[:,:,j][pred==i] = color_map[i][j]
-            #
-            # sv_img = cv2.cvtColor(sv_img, cv2.COLOR_BGR2RGB)
-            # # sv_img = Image.fromarray(sv_img)
-            # # print(type(sv_img))
-            #
-            # # 推論結果をImage型に変換
-            # result_msg = bridge.cv2_to_imgmsg(sv_img, encoding="passthrough")
-            #
-            # # 推論結果をpublish
-            # self.pub.publish(result_msg)
-
 if __name__=="__main__":
     PIDNet_ROS()
-    # rate = rospy.Rate(10)
-    # while not rospy.is_shutdown():
-    #     rospy.spin()
-    #     rate.sleep()
     rospy.spin()
 
