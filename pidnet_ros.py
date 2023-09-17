@@ -68,36 +68,37 @@ class PIDNet_ROS:
         self.predictor = pidnet.get_pred_model('pidnet-s', 19)
         self.predictor = load_pretrained(self.predictor, os.path.join(os.getcwd() + weight_path))
         self.predictor.eval()
+        self.bridge = CvBridge()
 
+        self.subscribed_img = False
         self.image_sub = rospy.Subscriber('/CompressedImage', CompressedImage, self.image_callback)
         self.pub = rospy.Publisher('/pidnet', ImageMsg, queue_size=10)
         rospy.Timer(rospy.Duration(0.05), self.timerCallback)
 
     def timerCallback(self, event):
+        if self.subscribed_img:
+            with torch.no_grad():
+                # img = torch.from_numpy(img).unsqueeze(0).cuda()
+                pred = self.predictor(self.img)
+                pred = F.interpolate(pred, size=self.img.size()[-2:],
+                        mode='bilinear', align_corners=True)
+                pred = torch.argmax(pred, dim=1).squeeze(0).cpu().numpy()
+                for i, color in enumerate(color_map):
+                    for j in range(3):
+                        self.sv_img[:,:,j][pred==i] = color_map[i][j]
 
-        with torch.no_grad():
-            # img = torch.from_numpy(img).unsqueeze(0).cuda()
-            pred = self.predictor(self.img)
-            pred = F.interpolate(pred, size=self.img.size()[-2:],
-                    mode='bilinear', align_corners=True)
-            pred = torch.argmax(pred, dim=1).squeeze(0).cpu().numpy()
-            for i, color in enumerate(color_map):
-                for j in range(3):
-                    self.sv_img[:,:,j][pred==i] = color_map[i][j]
+                sv_img = cv2.cvtColor(self.sv_img, cv2.COLOR_BGR2RGB)
+                # sv_img = Image.fromarray(sv_img)
+                # print(type(sv_img))
 
-            sv_img = cv2.cvtColor(self.sv_img, cv2.COLOR_BGR2RGB)
-            # sv_img = Image.fromarray(sv_img)
-            # print(type(sv_img))
+                # 推論結果をImage型に変換
+                result_msg = self.bridge.cv2_to_imgmsg(sv_img, encoding="passthrough")
 
-            # 推論結果をImage型に変換
-            result_msg = self.bridge.cv2_to_imgmsg(sv_img, encoding="passthrough")
-
-            # 推論結果をpublish
-            self.pub.publish(result_msg)
+                # 推論結果をpublish
+                self.pub.publish(result_msg)
 
     def image_callback(self, msg):
         # 画像データをROSメッセージから復元
-        self.bridge = CvBridge()
         with torch.no_grad():
             img = self.bridge.compressed_imgmsg_to_cv2(msg)
 
@@ -106,6 +107,7 @@ class PIDNet_ROS:
             img = img.transpose((2, 0, 1)).copy()
             img = torch.from_numpy(img).unsqueeze(0)
             self.img = img
+        self.subscribed_img = True
 
 
 
