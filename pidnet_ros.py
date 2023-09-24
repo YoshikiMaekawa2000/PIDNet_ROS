@@ -8,12 +8,10 @@ from cv_bridge import CvBridge
 import cv2
 import numpy as np
 from PIDNet.models import pidnet
+# from PIDNet.models.speed.pidnet_speed import pidnet_speed
 import torch
 import torch.nn.functional as F
 from PIL import Image
-
-mean = [0.485, 0.456, 0.406]
-std = [0.229, 0.224, 0.225]
 
 color_map = [(128, 64,128),
              (244, 35,232),
@@ -35,40 +33,23 @@ color_map = [(128, 64,128),
              (  0,  0,230),
              (119, 11, 32)]
 
-def input_transform(image):
-    image = image.astype(np.float32)[:, :, ::-1]
-    image = image / 255.0
-    image -= mean
-    image /= std
-    return image
-
-
-def load_pretrained(model, pretrained):
-    pretrained_dict = torch.load(pretrained, map_location='cpu')
-    if 'state_dict' in pretrained_dict:
-        pretrained_dict = pretrained_dict['state_dict']
-    model_dict = model.state_dict()
-    pretrained_dict = {k[6:]: v for k, v in pretrained_dict.items() if (k[6:] in model_dict and v.shape == model_dict[k[6:]].shape)}
-    msg = 'Loaded {} parameters!'.format(len(pretrained_dict))
-    print('Attention!!!')
-    print(msg)
-    print('Over!!!')
-    model_dict.update(pretrained_dict)
-    model.load_state_dict(model_dict, strict = False)
-
-    return model
 
 class PIDNet_ROS:
     def __init__(self):
 
-        self.node_name =  "PIDNet"
+        self.node_name =  "pidnet_ros"
         rospy.init_node(self.node_name)
 
         weight_path = "/PIDNet/pretrained_models/cityscapes/PIDNet_S_Cityscapes_test.pt"
-        self.predictor = pidnet.get_pred_model('pidnet-s', 19)
-        self.predictor = load_pretrained(self.predictor, os.path.join(os.getcwd() + weight_path))
+        predict_model = pidnet.get_pred_model('pidnet-s', 19)
+
+        self.predictor = self.load_pretrained(predict_model, os.path.join(os.getcwd() + weight_path))
         self.predictor.eval()
         self.bridge = CvBridge()
+
+        self.mean = rospy.get_param('mean', [0.485, 0.456, 0.406])
+        self.std = rospy.get_param('std', [0.229, 0.224, 0.225])
+        self.use_speed_ver = rospy.get_param('use_speed_ver', False)
 
         self.subscribed_img = False
         self.image_sub = rospy.Subscriber('/CompressedImage', CompressedImage, self.image_callback)
@@ -78,7 +59,6 @@ class PIDNet_ROS:
     def timerCallback(self, event):
         if self.subscribed_img:
             with torch.no_grad():
-                # img = torch.from_numpy(img).unsqueeze(0).cuda()
                 pred = self.predictor(self.img)
                 pred = F.interpolate(pred, size=self.img.size()[-2:],
                         mode='bilinear', align_corners=True)
@@ -98,12 +78,33 @@ class PIDNet_ROS:
             img = self.bridge.compressed_imgmsg_to_cv2(msg)
 
             self.sv_img = np.zeros_like(img).astype(np.uint8)
-            img = input_transform(img)
+            img = self.input_transform(img)
             img = img.transpose((2, 0, 1)).copy()
             img = torch.from_numpy(img).unsqueeze(0)
             self.img = img
         self.subscribed_img = True
 
+    def input_transform(self, image):
+        image = image.astype(np.float32)[:, :, ::-1]
+        image = image / 255.0
+        image -= self.mean
+        image /= self.std
+        return image
+
+    def load_pretrained(self, model, pretrained):
+        pretrained_dict = torch.load(pretrained, map_location='cpu')
+        if 'state_dict' in pretrained_dict:
+            pretrained_dict = pretrained_dict['state_dict']
+        model_dict = model.state_dict()
+        pretrained_dict = {k[6:]: v for k, v in pretrained_dict.items() if (k[6:] in model_dict and v.shape == model_dict[k[6:]].shape)}
+        msg = 'Loaded {} parameters!'.format(len(pretrained_dict))
+        print('Attention!!!')
+        print(msg)
+        print('Over!!!')
+        model_dict.update(pretrained_dict)
+        model.load_state_dict(model_dict, strict = False)
+
+        return model
 
 if __name__=="__main__":
     PIDNet_ROS()

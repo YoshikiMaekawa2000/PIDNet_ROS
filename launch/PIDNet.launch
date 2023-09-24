@@ -3,6 +3,10 @@
 <launch>
     <node name="pidnet_ros" pkg="pidnet_ros" type="pidnet_ros.py" cwd="node" output="screen">
         <remap from="CompressedImage" to="/grasscam/image_raw/compressed" />
+
+        <param name="mean" value="[0.485, 0.456, 0.406]" />
+        <param name="std" value="[0.229, 0.224, 0.225]" />
+        <param name="use_speed_ver" value="False" />
     </node>
 
     <node pkg="rosbag" type="play" name="play" args="/home/amsl/bagfiles/ikuta/ikuta_outdoor_2023-09-17-15-58-50.bag">
