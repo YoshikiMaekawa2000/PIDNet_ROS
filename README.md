@@ -1,2 +1,2 @@
 # PIDNet_ROS
-[PIDNet](https://github.com/XuJiacong/PIDNet) github
+[PIDNet github](https://github.com/XuJiacong/PIDNet) 
