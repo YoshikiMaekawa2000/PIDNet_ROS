@@ -8,7 +8,6 @@ from cv_bridge import CvBridge
 import cv2
 import numpy as np
 from PIDNet.models import pidnet
-# from PIDNet.models.speed.pidnet_speed import pidnet_speed
 import torch
 import torch.nn.functional as F
 from PIL import Image
